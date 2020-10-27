@@ -3,8 +3,8 @@
    // ======================================================
    // RISC-V CPU - day 4 labs
    // Makerchip sandbox url:
-	 // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Elh3JZ
-	 // latest change:  Lab: Fetch - part 1
+   // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Elh3JZ
+   // latest change:  Lab: Next PC
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -48,15 +48,17 @@
       @0
          $reset = *reset;
 
+         // resetable 1-bit cntr
+         $pc[31:0] = >>1$reset ? 0 :
+                     >>1$inc_pc;  // incr. by 1 instr. 
+      @1
+         $inc_pc[31:0] = $pc + 32'd4;  // incr. by 1 counter                     
 
-
-      // YOUR CODE HERE
-      // ...
-
+         
+         
       // Note: Because of the magic we are using for visualisation, if visualisation is enabled below,
       //       be sure to avoid having unassigned signals (which you might be using for random inputs)
       //       other than those specifically expected in the labs. You'll get strange errors for these.
-
    
    // Assert these to end simulation (before Makerchip cycle limit).
    *passed = *cyc_cnt > 40;
@@ -68,11 +70,11 @@
    //  o data memory
    //  o CPU visualization
    |cpu
-      //m4+imem(@1)    // Args: (read stage)
+      m4+imem(@1)    // Args: (read stage)
       //m4+rf(@1, @1)  // Args: (read stage, write stage) - if equal, no register bypass is required
       //m4+dmem(@4)    // Args: (read/write stage)
    
-   //m4+cpu_viz(@4)    // For visualisation, argument should be at least equal to the last stage of CPU logic
+   m4+cpu_viz(@4)    // For visualisation, argument should be at least equal to the last stage of CPU logic
                        // @4 would work for all labs
 \SV
    endmodule
