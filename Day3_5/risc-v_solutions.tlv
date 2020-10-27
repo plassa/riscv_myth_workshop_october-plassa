@@ -4,7 +4,7 @@
    // RISC-V CPU - day 4 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Elh3JZ
-   // latest change:  Lab: Next PC
+   // latest change:  Lab: Fetch - part 2
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -51,10 +51,12 @@
          // resetable 1-bit cntr
          $pc[31:0] = >>1$reset ? 0 :
                      >>1$inc_pc;  // incr. by 1 instr. 
-      @1
-         $inc_pc[31:0] = $pc + 32'd4;  // incr. by 1 counter                     
-
          
+      @1
+         $imem_rd_en = !$reset;
+         $imem_rd_addr[M4_IMEM_INDEX_CNT-1:0] = $pc[M4_IMEM_INDEX_CNT+1:2];
+         $inc_pc[31:0] = $pc + 32'd4;  // incr. by 1 counter                     
+         $instr[31:0] = $imem_rd_data;  // send to decode
          
       // Note: Because of the magic we are using for visualisation, if visualisation is enabled below,
       //       be sure to avoid having unassigned signals (which you might be using for random inputs)
@@ -78,3 +80,4 @@
                        // @4 would work for all labs
 \SV
    endmodule
+
