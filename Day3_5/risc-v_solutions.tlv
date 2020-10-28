@@ -4,7 +4,7 @@
    // RISC-V CPU - day 4 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Elh3JZ
-   // latest change:  Lab: Branches 
+   // latest change:  Lab: Simple testbench 
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -150,7 +150,8 @@
       //       other than those specifically expected in the labs. You'll get strange errors for these.
    
    // Assert these to end simulation (before Makerchip cycle limit).
-   *passed = *cyc_cnt > 40;
+   // *passed = *cyc_cnt > 40; 
+   *passed = |cpu/xreg[10]>>5$value == (1+2+3+4+5+6+7+8+9);
    *failed = 1'b0;
    
    // Macro instantiations for:
