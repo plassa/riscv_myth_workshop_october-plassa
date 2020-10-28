@@ -4,7 +4,7 @@
    // RISC-V CPU - day 4 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Elh3JZ
-   // latest change:  Lab: Decode - Types IRSBJU and Immediate
+   // latest change:  Lab: Instruction Decode
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -80,6 +80,25 @@
                       $is_u_instr ? { $instr[31:12], 12'b0 } :
                       $is_j_instr ? { {12{$instr[31]}}, $instr[19:12], $instr[20], $instr[30:21], 1'b0 } :
                                      32'b0;
+         $funct7[6:0] = $instr[31:25];
+         $rs2[4:0] = $instr[24:20];
+         $rs1[4:0] = $instr[19:15];
+         $funct3[2:0] = $instr[14:12];
+         $rd[4:0] = $instr[11:7];
+         $opcode[6:0] = $instr[6:0];
+         
+         $dec_bits[10:0] = {$funct7[5],$funct3,$opcode};
+         $is_beq = $dec_bits ==? 11'bx_000_1100011;
+         $is_bne = $dec_bits ==? 11'bx_001_1100011;
+         $is_blt = $dec_bits ==? 11'bx_100_1100011;
+         $is_bge = $dec_bits ==? 11'bx_101_1100011;
+         $is_bltu = $dec_bits ==? 11'bx_110_1100011;
+         $is_bgeu = $dec_bits ==? 11'bx_111_1100011;
+         $is_addi = $dec_bits ==? 11'bx_000_0010011;
+         $is_add = $dec_bits ==? 11'b0_000_0110011;
+         
+         // Until instrs are implemented, quiet down th ewarnings.
+         `BOGUS_USE($is_beq $is_bne $is_blt $is_bge $is_bltu $is_bgeu $is_addi $is_add)
          
       // Note: Because of the magic we are using for visualisation, if visualisation is enabled below,
       //       be sure to avoid having unassigned signals (which you might be using for random inputs)
@@ -103,5 +122,6 @@
                        // @4 would work for all labs
 \SV
    endmodule
+
 
 
