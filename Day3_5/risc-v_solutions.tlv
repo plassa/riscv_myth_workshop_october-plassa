@@ -4,7 +4,7 @@
    // RISC-V CPU - day 4 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Elh3JZ
-   // latest change:  Lab: Fetch - part 2
+   // latest change:  Lab: Decode - Types IRSBJU and Immediate
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -58,6 +58,29 @@
          $inc_pc[31:0] = $pc + 32'd4;  // incr. by 1 counter                     
          $instr[31:0] = $imem_rd_data;  // send to decode
          
+         $is_i_instr = $instr[6:2] ==? 5'b0000x ||
+                       $instr[6:2] ==? 5'b001x0 ||
+                       $instr[6:2] ==? 5'b11001;
+
+         $is_r_instr = $instr[6:2] ==? 5'b01011 ||
+                       $instr[6:2] ==? 5'b011x0 ||
+                       $instr[6:2] ==? 5'b10100;
+                       
+         $is_s_instr = $instr[6:2] ==? 5'b0100x;
+                       
+         $is_b_instr = $instr[6:2] == 5'b11000;
+
+         $is_j_instr = $instr[6:2] == 5'b11011;
+
+         $is_u_instr = $instr[6:2] ==? 5'b0x101;
+         
+         $imm[31:0] = $is_i_instr ? { {21{$instr[31]}}, $instr[30:20] } :
+                      $is_s_instr ? { {21{$instr[31]}}, $instr[30:25], $instr[11:7] } :
+                      $is_b_instr ? { {20{$instr[31]}}, $instr[7], $instr[30:25], $instr[11:8], 1'b0 } :
+                      $is_u_instr ? { $instr[31:12], 12'b0 } :
+                      $is_j_instr ? { {12{$instr[31]}}, $instr[19:12], $instr[20], $instr[30:21], 1'b0 } :
+                                     32'b0;
+         
       // Note: Because of the magic we are using for visualisation, if visualisation is enabled below,
       //       be sure to avoid having unassigned signals (which you might be using for random inputs)
       //       other than those specifically expected in the labs. You'll get strange errors for these.
@@ -67,7 +90,7 @@
    *failed = 1'b0;
    
    // Macro instantiations for:
-   //  o instruction memory
+   //  o instruction memory 
    //  o register file
    //  o data memory
    //  o CPU visualization
@@ -80,4 +103,5 @@
                        // @4 would work for all labs
 \SV
    endmodule
+
 
