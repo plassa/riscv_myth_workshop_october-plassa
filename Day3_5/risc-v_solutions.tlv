@@ -4,7 +4,7 @@
    // RISC-V CPU - day 4 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Elh3JZ
-   // latest change:  Lab: ALU, Register File Write 
+   // latest change:  Lab: Branches 
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -49,13 +49,14 @@
          $reset = *reset;
 
          // resetable 1-bit cntr
-         $pc[31:0] = >>1$reset ? 0 :
-                     >>1$inc_pc;  // incr. by 1 instr. 
+         $pc[31:0] = >>1$reset ? '0 :
+                     >>1$taken_br ? >>1$br_tgt_pc :
+                     >>1$pc + 32'd4;  // incr. by 1 instr. as default 
          
       @1
          $imem_rd_en = !$reset;
          $imem_rd_addr[M4_IMEM_INDEX_CNT-1:0] = $pc[M4_IMEM_INDEX_CNT+1:2];
-         $inc_pc[31:0] = $pc + 32'd4;  // incr. by 1 counter                     
+         // $inc_pc[31:0] = $pc + 32'd4;  // incr. by 1 counter                     
          $instr[31:0] = $imem_rd_data;  // send to decode
          
          //  Instruction types decode (IRSBJU)
@@ -131,6 +132,15 @@
          $rf_wr_index[4:0] = $rd[4:0];
          $rf_wr_data[31:0] = $result;  // = alu_out[31:0]
          
+         $taken_br = $is_beq ? ($src1_value == $src2_value) :
+                     $is_bne ? ($src1_value != $src2_value) :
+                     $is_blt ? (($src1_value < $src2_value) ^ ($src1_value[31] != $src2_value[31])) :
+                     $is_bge ? (($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31])) :
+                     $is_bltu ? ($src1_value < $src2_value) :
+                     $is_bgeu ? ($src1_value >= $src2_value) :
+                                1'b0;  // if none true, then branch not taken
+         
+         $br_tgt_pc[31:0] = $pc + $imm;  // forward or backward branch/jump
          
          // Until instrs are implemented, quiet down th ewarnings.
          `BOGUS_USE($is_beq $is_bne $is_blt $is_bge $is_bltu $is_bgeu $is_addi $is_add)
