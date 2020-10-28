@@ -4,7 +4,7 @@
    // RISC-V CPU - day 4 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Elh3JZ
-   // latest change:  Lab: Register File Read Pt.1, 2
+   // latest change:  Lab: ALU, Register File Write 
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -120,11 +120,16 @@
          $rf_rd_index2[4:0] = $rs2[4:0];
          $src1_value[31:0] = $rf_rd_data1;  // alu input data1
          $src2_value[31:0] = $rf_rd_data2;  // alu input data2
-
+         
+         //  ALU results
+         $result[31:0] = $is_addi ? $src1_value + $imm :
+                         $is_add ? $src1_value + $src2_value :
+                                   32'bx;  // default to 'x'/ unknown
+         
          //  Register File Write
-         //$rf_wr_en = $is_r_instr;
-         //$rf_rd_index1[4:0] = $rd[4:0];
-         //$rf_wr_data[31:0] = $alu_out[31:0];  ????
+         $rf_wr_en = $rd_valid && $rd != 5'b0;  // do *not* enable for rd = reg 0
+         $rf_wr_index[4:0] = $rd[4:0];
+         $rf_wr_data[31:0] = $result;  // = alu_out[31:0]
          
          
          // Until instrs are implemented, quiet down th ewarnings.
