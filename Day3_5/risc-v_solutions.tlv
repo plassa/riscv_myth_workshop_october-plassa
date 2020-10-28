@@ -3,8 +3,8 @@
    // ======================================================
    // RISC-V CPU - day 4 labs
    // Makerchip sandbox url:
-   // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Elh3JZ
-   // latest change:  Lab: Simple testbench 
+   // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Mjhqqx
+   // latest change:  Lab: 3-Cycle RISC-V 
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -47,8 +47,15 @@
    |cpu
       @0
          $reset = *reset;
+         
+         $start = >>1$reset && !$reset;  // 1 shot, falling edge of $reset
+         
+         // 3-cycle valid pulse, after $reset
+         $valid = $reset ? 'b0 :
+                  $start ? 'b1 :
+                            >>3$valid;
 
-         // resetable 1-bit cntr
+         // resetable 32-bit cntr, can load in new target pc, else incr. by 4 bytes
          $pc[31:0] = >>1$reset ? '0 :
                      >>1$taken_br ? >>1$br_tgt_pc :
                      >>1$pc + 32'd4;  // incr. by 1 instr. as default 
