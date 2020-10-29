@@ -1,10 +1,10 @@
 \m4_TLV_version 1d: tl-x.org
 \SV
    // ======================================================
-   // RISC-V CPU - day 4 labs
+   // RISC-V CPU - day 5 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Mjhqqx
-   // latest change:  Lab: 3-Cycle RISC-V 
+   // latest change:  Lab: 3-Cycle RISC-V - distribute logic
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -12,7 +12,7 @@
    m4_include_lib(['https://raw.githubusercontent.com/stevehoover/RISC-V_MYTH_Workshop/c1719d5b338896577b79ee76c2f443ca2a76e14f/tlv_lib/risc-v_shell_lib.tlv'])
 
 \SV
-   m4_makerchip_module   // (Expanded in Nav-TLV pane.)
+   m4_makerchip_module   // (Expanded in Nav-TLV pane.) 
 \TLV
 
    // /====================\
@@ -55,16 +55,18 @@
                   $start ? 'b1 :
                             >>3$valid;
 
-         // resetable 32-bit cntr, can load in new target pc, else incr. by 4 bytes
-         $pc[31:0] = >>1$reset ? '0 :
-                     >>1$taken_br ? >>1$br_tgt_pc :
-                     >>1$pc + 32'd4;  // incr. by 1 instr. as default 
-         
-      @1
-         $imem_rd_en = !$reset;
-         $imem_rd_addr[M4_IMEM_INDEX_CNT-1:0] = $pc[M4_IMEM_INDEX_CNT+1:2];
-         // $inc_pc[31:0] = $pc + 32'd4;  // incr. by 1 counter                     
+         // resetable 32-bit PC cntr, can load in new target pc, else incr. by 4 bytes
+         // extend to 1 of 3 cycles $valid
+         $pc[31:0] = >>1$reset ? '0 :     // is ">>1" for $reset correct?
+                     >>3$valid_taken_br ? >>3$br_tgt_pc :
+                     >>3$inc_pc;  // next incr. instr. as default 
+                  
+      @1 
+         $inc_pc[31:0] = $pc + 32'd4;  // incr. by 1 counter                     
          $instr[31:0] = $imem_rd_data;  // send to decode
+
+         $imem_rd_en = !$reset;
+         $imem_rd_addr[M4_IMEM_INDEX_CNT-1:0] = $pc[M4_IMEM_INDEX_CNT+1:2];         
          
          //  Instruction types decode (IRSBJU)
          $is_i_instr = $instr[6:2] ==? 5'b0000x ||
@@ -121,6 +123,7 @@
          $is_addi = $dec_bits ==? 11'bx_000_0010011;
          $is_add = $dec_bits ==? 11'b0_000_0110011;
 
+      @2   
          //  Register File Read
          $rf_rd_en1 = $rs1_valid;
          $rf_rd_index1[4:0] = $rs1[4:0];
@@ -129,16 +132,11 @@
          $src1_value[31:0] = $rf_rd_data1;  // alu input data1
          $src2_value[31:0] = $rf_rd_data2;  // alu input data2
          
-         //  ALU results
-         $result[31:0] = $is_addi ? $src1_value + $imm :
-                         $is_add ? $src1_value + $src2_value :
-                                   32'bx;  // default to 'x'/ unknown
+         // br_tgt_pc
+         $br_tgt_pc[31:0] = $pc + $imm;  // forward or backward branch/jump
          
-         //  Register File Write
-         $rf_wr_en = $rd_valid && $rd != 5'b0;  // do *not* enable for rd = reg 0
-         $rf_wr_index[4:0] = $rd[4:0];
-         $rf_wr_data[31:0] = $result;  // = alu_out[31:0]
-         
+      @3   
+         //  Branch Condition logic
          $taken_br = $is_beq ? ($src1_value == $src2_value) :
                      $is_bne ? ($src1_value != $src2_value) :
                      $is_blt ? (($src1_value < $src2_value) ^ ($src1_value[31] != $src2_value[31])) :
@@ -146,8 +144,19 @@
                      $is_bltu ? ($src1_value < $src2_value) :
                      $is_bgeu ? ($src1_value >= $src2_value) :
                                 1'b0;  // if none true, then branch not taken
+         $valid_taken_br = $valid && $taken_br;
          
-         $br_tgt_pc[31:0] = $pc + $imm;  // forward or backward branch/jump
+         //  ALU results
+         $result[31:0] = $is_addi ? $src1_value + $imm :
+                         $is_add ? $src1_value + $src2_value :
+                                   32'bx;  // default to 'x'/ unknown
+         
+         //  Register File Write
+         $rf_wr_en = $valid && $rd_valid && $rd != 5'b0;  // do *not* enable for rd = reg 0
+                     //  wr_en only when $valid
+         $rf_wr_index[4:0] = $rd[4:0];
+         $rf_wr_data[31:0] = $result;  // = alu_out[31:0]
+
          
          // Until instrs are implemented, quiet down th ewarnings.
          `BOGUS_USE($is_beq $is_bne $is_blt $is_bge $is_bltu $is_bgeu $is_addi $is_add)
@@ -168,7 +177,7 @@
    //  o CPU visualization
    |cpu
       m4+imem(@1)    // Args: (read stage)
-      m4+rf(@1, @1)  // Args: (read stage, write stage) - if equal, no register bypass is required
+      m4+rf(@2, @3)  // Args: (read stage, write stage) - if equal, no register bypass is required
       //m4+dmem(@4)    // Args: (read/write stage)
    
    m4+cpu_viz(@4)    // For visualisation, argument should be at least equal to the last stage of CPU logic
