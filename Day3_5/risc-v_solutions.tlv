@@ -4,7 +4,7 @@
    // RISC-V CPU - day 5 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0rkfAhyz9/01jhM00
-   // latest change:  Lab: 3-Cycle RISC-V - RF bypass, RAW hzrd
+   // latest change:  Lab: 3-Cycle RISC-V - branches, br trgt path
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -48,19 +48,19 @@
       @0
          $reset = *reset;
          
-         $start = >>1$reset && !$reset;  // 1 shot, falling edge of $reset
+         // $start = >>1$reset && !$reset;  // 1 shot, falling edge of $reset
          
          // 3-cycle valid pulse, after $reset
-         $valid = $reset ? 'b0 :
-                  $start ? 'b1 :
-                            >>3$valid;
+         // $valid = $reset ? 'b0 :
+         //         $start ? 'b1 :
+         //                   >>3$valid;
 
          // resetable 32-bit PC cntr, can load in new target pc, else incr. by 4 bytes
          // extend to 1 of 3 cycles $valid
          $pc[31:0] = >>1$reset ? '0 :     // is ">>1" for $reset correct?
                      >>3$valid_taken_br ? >>3$br_tgt_pc :
-                     >>3$inc_pc;  // next incr. instr. as default 
-                  
+                     >>1$inc_pc;  // next incr. instr. as default 
+         
       @1 
          $inc_pc[31:0] = $pc + 32'd4;  // incr. by 1 counter                     
          $instr[31:0] = $imem_rd_data;  // send to decode
@@ -154,6 +154,9 @@
          $result[31:0] = $is_addi ? $src1_value + $imm :
                          $is_add ? $src1_value + $src2_value :
                                    32'bx;  // default to 'x'/ unknown
+
+         // 2-cycle invalid pipeline bubble for branch target taken
+         $valid = !(>>1$taken_br || >>2$taken_br);  // prev. 2 instr.
          
          //  Register File Write
          $rf_wr_en = $valid && $rd_valid && $rd != 5'b0;  // do *not* enable for rd = reg 0
