@@ -3,7 +3,7 @@
    // ======================================================
    // RISC-V CPU - day 5 labs
    // Makerchip sandbox url:
-   // 	https://www.makerchip.com/sandbox/0VOflhyv2/0Mjhqqx
+   // 	https://www.makerchip.com/sandbox/0rkfAhyz9/01jhM00
    // latest change:  Lab: 3-Cycle RISC-V - RF bypass, RAW hzrd
    // ======================================================
 
@@ -129,10 +129,10 @@
          $rf_rd_index1[4:0] = $rs1;
          $rf_rd_en2 = $rs2_valid;
          $rf_rd_index2[4:0] = $rs2;
-         $src1_value[31:0] = ($rf_wr_en && >>1$rd == $rs1) ?  // should wr_en be >>1 ?
+         $src1_value[31:0] = (>>1$rf_wr_en && >>1$rd == $rs1) ?  // should wr_en be >>1 ?
                               >>1$result :  // reg1 bypass fr. alu out 
                               $rf_rd_data1;  // alu input data1
-         $src2_value[31:0] = ($rf_wr_en && >>1$rd == $rs2 ?
+         $src2_value[31:0] = (>>1$rf_wr_en && >>1$rd == $rs2) ?
                               >>1$result :  // reg2 bypass fr. alu out
                               $rf_rd_data2;  // alu input data2
          
