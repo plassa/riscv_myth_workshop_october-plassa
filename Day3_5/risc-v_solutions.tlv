@@ -4,7 +4,7 @@
    // RISC-V CPU - day 5 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0rkfAhyz9/01jhM00
-   // latest change:  Lab: Code Complete ALU
+   // latest change:  Lab: LD/ST instr., re-dir pc, ld data to RF
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -59,6 +59,7 @@
          // extend to 1 of 3 cycles $valid
          $pc[31:0] = >>1$reset ? '0 :     // is ">>1" for $reset correct?
                      >>3$valid_taken_br ? >>3$br_tgt_pc :
+                     >>3$is_load ? >>3$inc_pc :  // incr'd pc past shadow on load op
                      >>1$inc_pc;  // next incr. instr. as default 
          
       @1 
@@ -208,17 +209,24 @@
                          $is_slti ? ($src1_value[31] == $imm[31]) ? $sltiu_rslt :
                                {31'b0, $src1_value[31]} :
                          $is_sra ? { {32{$src1_value[31]}}, $src1_value} >> $src2_value[4:0] :
+                         $is_load ? $src1_value + $imm :  // same as addi to calc dmem addr
+                         $is_s_instr ? $src1_value + $imm :  // same as addi to calc dmem addr
                                    32'bx;  // default to 'x'/ unknown
 
          // 2-cycle invalid pipeline bubble for branch target taken
-         $valid = !(>>1$taken_br || >>2$taken_br);  // prev. 2 instr.
-         
+         $valid = !(>>1$taken_br || >>2$taken_br)   // prev. 2 instr. were taken Br
+                 && !(>>1$is_load || >>2$is_load);  // prev. 2 instr. were LOAD
+          
          //  Register File Write
-         $rf_wr_en = $valid && $rd_valid && $rd != 5'b0;  // do *not* enable for rd = reg 0
+         // do *not* enable for rd = reg0
+         $rf_wr_en = ($valid && $rd_valid && $rd != 5'b0) || >>2$is_load; // enable RF wr. 2 cyc. after ld   
                      //  wr_en only when $valid
-         $rf_wr_index[4:0] = $rd[4:0];
-         $rf_wr_data[31:0] = $result;  // = alu_out[31:0]
-
+         
+         $rf_wr_index[4:0] = $valid ? $rd[4:0] :
+                             >>2$rd[4:0];  // if ld op, use dest. reg $rd from 2 cyc. prior
+         
+         $rf_wr_data[31:0] = $valid ? $result :  // = alu_out[31:0] if vslid instr, not ld op
+                             >>2$ld_data;  // bypass dmem read data to RF on ld op
          
          // Until instrs are implemented, quiet down th ewarnings.
          `BOGUS_USE($is_beq $is_bne $is_blt $is_bge $is_bltu $is_bgeu $is_addi $is_add)
