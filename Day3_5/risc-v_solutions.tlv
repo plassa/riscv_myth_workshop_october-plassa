@@ -4,7 +4,7 @@
    // RISC-V CPU - day 5 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0rkfAhyz9/01jhM00
-   // latest change:  Lab: LD/ST, instantiate Dmem
+   // latest change:  Lab: Control logic for Jumps
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -60,7 +60,8 @@
          // resetable 32-bit PC cntr, can load in new target pc, else incr. by 4 bytes
          // extend to 1 of 3 cycles $valid
          $pc[31:0] = >>1$reset ? '0 :     // is ">>1" for $reset correct?
-                     >>3$valid_taken_br ? >>3$br_tgt_pc :
+                     >>3$valid_taken_br ? >>3$br_tgt_pc :  // br or JAL
+                     >>3$is_jalr ? >>3$jalr_tgt_pc : // JALR
                      >>3$is_load ? >>3$inc_pc :  // incr'd pc past shadow on load op
                      >>1$inc_pc;  // next incr. instr. as default 
          
@@ -170,20 +171,24 @@
                               $rf_rd_data2;  // alu input data2
          // $src1_value[31:0] = >>1$rf_wr_en && (>>1$rd == $rs1) ?  // should wr_en be >>1 ?
 
-                              
          // br_tgt_pc
-         $br_tgt_pc[31:0] = $pc + $imm;  // forward or backward branch/jump
-         
+         $br_tgt_pc[31:0] = $pc + $imm;  // forward or backward branch
+      
+         // jalr_tgt_pc
+         $jalr_tgt_pc[31:0] = $src1_value + $src2_value;  // forward or backward jump
+      
       @3   
-         //  Branch Condition logic
+         //  Branch Condition logic + added JAL (uncond. brch)
          $taken_br = $is_beq ? ($src1_value == $src2_value) :
                      $is_bne ? ($src1_value != $src2_value) :
                      $is_blt ? (($src1_value < $src2_value) ^ ($src1_value[31] != $src2_value[31])) :
                      $is_bge ? (($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31])) :
                      $is_bltu ? ($src1_value < $src2_value) :
                      $is_bgeu ? ($src1_value >= $src2_value) :
-                                1'b0;  // if none true, then branch not taken
+                     $is_jal ? 1'b1 :  // jump is unconditional
+                               1'b0;   // if none true, then branch not taken
          $valid_taken_br = $valid && $taken_br;
+         
          
          //  ALU results
          $sltu_rslt = $src1_value < $src2_value;
@@ -219,9 +224,12 @@
                          $is_s_instr ? $src1_value + $imm :  // same as addi to calc dmem addr
                                    32'bx;  // default to 'x'/ unknown
 
-         // 2-cycle invalid pipeline bubble for branch target taken
+         $is_jump = $is_jal || $is_jalr;
+                                   
+         // 2-cycle invalid pipeline bubble for branch target taken, load, or jump
          $valid = !(>>1$taken_br || >>2$taken_br)   // prev. 2 instr. were taken Br
-                 && !(>>1$is_load || >>2$is_load);  // prev. 2 instr. were LOAD
+                 && !(>>1$is_load || >>2$is_load)  // prev. 2 instr. were LOAD
+                 && !(>>1$is_jump || >>2$is_jump);  // prev. 2 instr. were JUMP
           
          //  Register File Write
          // do *not* enable for rd = reg0
