@@ -4,7 +4,7 @@
    // RISC-V CPU - day 5 labs
    // Makerchip sandbox url:
    // 	https://www.makerchip.com/sandbox/0rkfAhyz9/01jhM00
-   // latest change:  Lab: LD/ST instr., re-dir pc, ld data to RF
+   // latest change:  Lab: LD/ST, instantiate Dmem
    // ======================================================
 
    // This code can be found in: https://github.com/stevehoover/RISC-V_MYTH_Workshop
@@ -39,6 +39,8 @@
    m4_asm(ADDI, r13, r13, 1)            // Increment intermediate register by 1
    m4_asm(BLT, r13, r12, 1111111111000) // If a3 is less than a2, branch to label named <loop>
    m4_asm(ADD, r10, r14, r0)            // Store final result to register a0 so that it can be read by main program
+   m4_asm(SW, r0, r10, 100)            // Store result in r10 to Dmem addr. 100 (dec. 4) 
+   m4_asm(LW, r15, r0, 100)            // Load result from Dmem addr. 100 (dec. 4) into r15
    
    // Optional:
    // m4_asm(JAL, r7, 00000000000000000000) // Done. Jump to itself (infinite loop). (Up to 20-bit signed immediate plus implicit 0 bit (unlike JALR) provides byte address; last immediate bit should also be 0)
@@ -159,10 +161,10 @@
          $rf_rd_en2 = $rs2_valid;
          $rf_rd_index2[4:0] = $rs2;
          $src1_value[31:0] = (>>1$rf_wr_en && >>1$rd == $rs1) ?  // should wr_en be >>1 ?
-                              >>1$result :  // reg1 bypass fr. alu out 
+                              >>1$result :  // reg1 bypass fr. alu out prev instr.
                               $rf_rd_data1;  // alu input data1
          $src2_value[31:0] = (>>1$rf_wr_en && >>1$rd == $rs2) ?
-                              >>1$result :  // reg2 bypass fr. alu out
+                              >>1$result :  // reg2 bypass fr. alu out prev instr.
                               $rf_rd_data2;  // alu input data2
          
          // br_tgt_pc
@@ -225,8 +227,18 @@
          $rf_wr_index[4:0] = $valid ? $rd[4:0] :
                              >>2$rd[4:0];  // if ld op, use dest. reg $rd from 2 cyc. prior
          
-         $rf_wr_data[31:0] = $valid ? $result :  // = alu_out[31:0] if vslid instr, not ld op
+         $rf_wr_data[31:0] = $valid ? $result :  // = alu_out[31:0] if valid instr, not ld op
                              >>2$ld_data;  // bypass dmem read data to RF on ld op
+         
+         // DMem hookup
+         $dmem_wr_en = $valid && $is_s_instr;  // DATA STORE
+         $dmem_addr[3:0] = $result[5:2];
+         $dmem_wr_data[31:0] = $src2_value[31:0];  // after RF bypass mux or is it $rs2?
+         $dmem_rd_en = $is_load;  // DATA LOAD
+         // $dmem_rd_index[5:0] = $result[5:2];  // mistake, does not exist
+         
+      @4   
+         $ld_data = $dmem_rd_data;  //  data read from Dmem
          
          // Until instrs are implemented, quiet down th ewarnings.
          `BOGUS_USE($is_beq $is_bne $is_blt $is_bge $is_bltu $is_bgeu $is_addi $is_add)
@@ -241,7 +253,8 @@
    
    // Assert these to end simulation (before Makerchip cycle limit).
    // *passed = *cyc_cnt > 40; 
-   *passed = |cpu/xreg[10]>>5$value == (1+2+3+4+5+6+7+8+9);
+   //*passed = |cpu/xreg[10]>>5$value == (1+2+3+4+5+6+7+8+9);
+   *passed = |cpu/xreg[15]>>5$value == (1+2+3+4+5+6+7+8+9);
    *failed = 1'b0;
    
    // Macro instantiations for:
@@ -252,7 +265,7 @@
    |cpu
       m4+imem(@1)    // Args: (read stage)
       m4+rf(@2, @3)  // Args: (read stage, write stage) - if equal, no register bypass is required
-      //m4+dmem(@4)    // Args: (read/write stage)
+      m4+dmem(@4)    // Args: (read/write stage)
    
    m4+cpu_viz(@4)    // For visualisation, argument should be at least equal to the last stage of CPU logic
                        // @4 would work for all labs
