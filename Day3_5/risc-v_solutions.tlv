@@ -114,6 +114,8 @@
          ?$rd_valid
             $rd[4:0] = $instr[11:7];
          $opcode[6:0] = $instr[6:0];  // valid for all types!
+      
+      @2  //  lecture slide 49 shows decode in @1, but soln in @2
          
          //  Instruction decode bits
          $dec_bits[10:0] = {$funct7[5],$funct3,$opcode};
@@ -154,19 +156,21 @@
          $is_or = $dec_bits ==? 11'b0_110_0110011;
          $is_and = $dec_bits ==? 11'b0_111_0110011;
          
-      @2   
+      // @2 was here,lecture slide 49 shows decode in @1, but soln in @2   
          //  Register File Read
          $rf_rd_en1 = $rs1_valid;
          $rf_rd_index1[4:0] = $rs1;
          $rf_rd_en2 = $rs2_valid;
          $rf_rd_index2[4:0] = $rs2;
-         $src1_value[31:0] = (>>1$rf_wr_en && >>1$rd == $rs1) ?  // should wr_en be >>1 ?
+         $src1_value[31:0] = (>>1$rf_wr_index == $rf_rd_index1) && >>1$rf_wr_en ?  // should (>>1$rd == $rs1) ?
                               >>1$result :  // reg1 bypass fr. alu out prev instr.
                               $rf_rd_data1;  // alu input data1
-         $src2_value[31:0] = (>>1$rf_wr_en && >>1$rd == $rs2) ?
+         $src2_value[31:0] = (>>1$rf_wr_index == $rf_rd_index2) && >>1$rf_wr_en ?
                               >>1$result :  // reg2 bypass fr. alu out prev instr.
                               $rf_rd_data2;  // alu input data2
-         
+         // $src1_value[31:0] = >>1$rf_wr_en && (>>1$rd == $rs1) ?  // should wr_en be >>1 ?
+
+                              
          // br_tgt_pc
          $br_tgt_pc[31:0] = $pc + $imm;  // forward or backward branch/jump
          
@@ -230,15 +234,16 @@
          $rf_wr_data[31:0] = $valid ? $result :  // = alu_out[31:0] if valid instr, not ld op
                              >>2$ld_data;  // bypass dmem read data to RF on ld op
          
+      @4   
          // DMem hookup
-         $dmem_wr_en = $valid && $is_s_instr;  // DATA STORE
+         $dmem_wr_en = $is_s_instr && $valid;  // DATA STORE
          $dmem_addr[3:0] = $result[5:2];
-         $dmem_wr_data[31:0] = $src2_value[31:0];  // after RF bypass mux or is it $rs2?
+         $dmem_wr_data[31:0] = $src2_value;  // after RF bypass mux or is it $rs2?
          $dmem_rd_en = $is_load;  // DATA LOAD
          // $dmem_rd_index[5:0] = $result[5:2];  // mistake, does not exist
-         
-      @4   
-         $ld_data = $dmem_rd_data;  //  data read from Dmem
+      
+      //@5
+         $ld_data[31:0] = $dmem_rd_data;  //  data read from Dmem
          
          // Until instrs are implemented, quiet down th ewarnings.
          `BOGUS_USE($is_beq $is_bne $is_blt $is_bge $is_bltu $is_bgeu $is_addi $is_add)
